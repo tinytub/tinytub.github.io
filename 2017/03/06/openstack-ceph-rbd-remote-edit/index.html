@@ -1,0 +1,693 @@
+<!doctype html>
+
+
+
+  
+
+
+<html class="theme-next mist use-motion" lang="zh-Hans">
+<head>
+  <meta charset="UTF-8"/>
+<meta http-equiv="X-UA-Compatible" content="IE=edge" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1"/>
+
+
+
+<meta http-equiv="Cache-Control" content="no-transform" />
+<meta http-equiv="Cache-Control" content="no-siteapp" />
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+  <link href="/lib/fancybox/source/jquery.fancybox.css?v=2.1.5" rel="stylesheet" type="text/css" />
+
+
+
+
+  
+  
+  
+  
+
+  
+    
+    
+  
+
+  
+
+  
+
+  
+
+  
+
+  
+    
+    
+    <link href="//fonts.googleapis.com/css?family=Lato:300,300italic,400,400italic,700,700italic&subset=latin,latin-ext" rel="stylesheet" type="text/css">
+  
+
+
+
+
+
+
+<link href="/lib/font-awesome/css/font-awesome.min.css?v=4.6.2" rel="stylesheet" type="text/css" />
+
+<link href="/css/main.css?v=5.1.0" rel="stylesheet" type="text/css" />
+
+
+  <meta name="keywords" content="Hexo, NexT" />
+
+
+
+
+
+
+
+
+  <link rel="shortcut icon" type="image/x-icon" href="/favicon.ico?v=5.1.0" />
+
+
+
+
+
+
+<meta name="description" content="随着ceph在线上更深入的使用，以及多机房的场景。以往虚拟机镜像修改上传的模式逐渐成为了负担。实际上，我们可以根据ceph存储的特性，将过去对镜像线下本地处理的操作改为直接在远端处理。
+准备1.镜像在ceph中存储的路径一般为 {pool_name}/{uuid}的形式，通常情况下该{uuid}和镜像的ID是相同的，为避免一些历史原因导致的镜像ID与ceph image uuid有差异，打开gla">
+<meta property="og:type" content="article">
+<meta property="og:title" content="openstack镜像结合ceph存储后的一些远端操作方法和思考">
+<meta property="og:url" content="http://tinytub.github.io/2017/03/06/openstack-ceph-rbd-remote-edit/index.html">
+<meta property="og:site_name" content="OldCola">
+<meta property="og:description" content="随着ceph在线上更深入的使用，以及多机房的场景。以往虚拟机镜像修改上传的模式逐渐成为了负担。实际上，我们可以根据ceph存储的特性，将过去对镜像线下本地处理的操作改为直接在远端处理。
+准备1.镜像在ceph中存储的路径一般为 {pool_name}/{uuid}的形式，通常情况下该{uuid}和镜像的ID是相同的，为避免一些历史原因导致的镜像ID与ceph image uuid有差异，打开gla">
+<meta property="og:updated_time" content="2017-03-06T09:11:40.000Z">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="openstack镜像结合ceph存储后的一些远端操作方法和思考">
+<meta name="twitter:description" content="随着ceph在线上更深入的使用，以及多机房的场景。以往虚拟机镜像修改上传的模式逐渐成为了负担。实际上，我们可以根据ceph存储的特性，将过去对镜像线下本地处理的操作改为直接在远端处理。
+准备1.镜像在ceph中存储的路径一般为 {pool_name}/{uuid}的形式，通常情况下该{uuid}和镜像的ID是相同的，为避免一些历史原因导致的镜像ID与ceph image uuid有差异，打开gla">
+
+
+
+<script type="text/javascript" id="hexo.configurations">
+  var NexT = window.NexT || {};
+  var CONFIG = {
+    root: '/',
+    scheme: 'Mist',
+    sidebar: {"position":"left","display":"post","offset":12,"offset_float":0,"b2t":false,"scrollpercent":false},
+    fancybox: true,
+    motion: true,
+    duoshuo: {
+      userId: '0',
+      author: '博主'
+    },
+    algolia: {
+      applicationID: '',
+      apiKey: '',
+      indexName: '',
+      hits: {"per_page":10},
+      labels: {"input_placeholder":"Search for Posts","hits_empty":"We didn't find any results for the search: ${query}","hits_stats":"${hits} results found in ${time} ms"}
+    }
+  };
+</script>
+
+
+
+  <link rel="canonical" href="http://tinytub.github.io/2017/03/06/openstack-ceph-rbd-remote-edit/"/>
+
+
+
+
+
+  <title> openstack镜像结合ceph存储后的一些远端操作方法和思考 | OldCola </title>
+</head>
+
+<body itemscope itemtype="http://schema.org/WebPage" lang="zh-Hans">
+
+  
+
+
+
+
+<script>
+  (function(i,s,o,g,r,a,m){i['GoogleAnalyticsObject']=r;i[r]=i[r]||function(){
+            (i[r].q=i[r].q||[]).push(arguments)},i[r].l=1*new Date();a=s.createElement(o),
+          m=s.getElementsByTagName(o)[0];a.async=1;a.src=g;m.parentNode.insertBefore(a,m)
+  })(window,document,'script','https://www.google-analytics.com/analytics.js','ga');
+  ga('create', '42256622-1', 'auto');
+  ga('send', 'pageview');
+</script>
+
+
+
+
+
+
+
+
+
+
+
+  
+  
+    
+  
+
+  <div class="container one-collumn sidebar-position-left page-post-detail ">
+    <div class="headband"></div>
+
+    <header id="header" class="header" itemscope itemtype="http://schema.org/WPHeader">
+      <div class="header-inner"><div class="site-brand-wrapper">
+  <div class="site-meta ">
+    
+
+    <div class="custom-logo-site-title">
+      <a href="/"  class="brand" rel="start">
+        <span class="logo-line-before"><i></i></span>
+        <span class="site-title">OldCola</span>
+        <span class="logo-line-after"><i></i></span>
+      </a>
+    </div>
+      
+        <p class="site-subtitle"></p>
+      
+  </div>
+
+  <div class="site-nav-toggle">
+    <button>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+      <span class="btn-bar"></span>
+    </button>
+  </div>
+</div>
+
+<nav class="site-nav">
+  
+
+  
+    <ul id="menu" class="menu">
+      
+        
+        <li class="menu-item menu-item-home">
+          <a href="/" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-home"></i> <br />
+            
+            首页
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-archives">
+          <a href="/archives" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-archive"></i> <br />
+            
+            归档
+          </a>
+        </li>
+      
+        
+        <li class="menu-item menu-item-tags">
+          <a href="/tags" rel="section">
+            
+              <i class="menu-item-icon fa fa-fw fa-tags"></i> <br />
+            
+            标签
+          </a>
+        </li>
+      
+
+      
+    </ul>
+  
+
+  
+</nav>
+
+
+
+ </div>
+    </header>
+
+    <main id="main" class="main">
+      <div class="main-inner">
+        <div class="content-wrap">
+          <div id="content" class="content">
+            
+
+  <div id="posts" class="posts-expand">
+    
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal " itemscope itemtype="http://schema.org/Article">
+    <link itemprop="mainEntityOfPage" href="http://tinytub.github.io/2017/03/06/openstack-ceph-rbd-remote-edit/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Tinytub">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OldCola">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+            
+            
+              
+                openstack镜像结合ceph存储后的一些远端操作方法和思考
+              
+            
+          </h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-03-06T17:10:58+08:00">
+                2017-03-06
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        <p>随着ceph在线上更深入的使用，以及多机房的场景。以往虚拟机镜像修改上传的模式逐渐成为了负担。实际上，我们可以根据ceph存储的特性，将过去对镜像线下本地处理的操作改为直接在远端处理。</p>
+<h2 id="准备"><a href="#准备" class="headerlink" title="准备"></a>准备</h2><p>1.镜像在ceph中存储的路径一般为 <code>{pool_name}/{uuid}</code>的形式，通常情况下该{uuid}和镜像的ID是相同的，为避免一些历史原因导致的镜像ID与ceph image uuid有差异，打开glance image-show中的location信息。</p>
+<p>修改 glance-api.conf，添加如下内容，打开rbd路径的详情。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">enable_v2_api =True</div><div class="line">show_multiple_locations = True</div><div class="line">filesystem_store_metadata_file = filePath</div></pre></td></tr></table></figure>
+<p>2.对准备操作glance中镜像的设备做libvirt同ceph的验证准备。</p>
+<p>定义secret文件</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div></pre></td><td class="code"><pre><div class="line">cat &gt; secret.xml &lt;&lt;EOF</div><div class="line">&lt;secret ephemeral=&apos;no&apos; private=&apos;no&apos;&gt;</div><div class="line">        &lt;usage type=&apos;ceph&apos;&gt;</div><div class="line">                &lt;name&gt;client.libvirt secret&lt;/name&gt;</div><div class="line">        &lt;/usage&gt;</div><div class="line">&lt;/secret&gt;</div><div class="line">EOF</div></pre></td></tr></table></figure>
+<p>libvirt添加secret配置</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">virsh secret-define --file secret.xml</div><div class="line">#这里会生成一个uuid 用在下面命令的 --secret 后，以及xml里的auth</div><div class="line">cat /etc/ceph/ceph.client.glance.keyring</div><div class="line">sudo virsh secret-set-value --secret 453cf8e2-02b4-4744-9455-5544601bb043 --base64 AQBkGYZX/tuDMxAANVznwk/+MkrhsEBlZAJlLg==</div></pre></td></tr></table></figure>
+<h2 id="对镜像操作的两个思路"><a href="#对镜像操作的两个思路" class="headerlink" title="对镜像操作的两个思路"></a>对镜像操作的两个思路</h2><h3 id="1-qcow2镜像存储中转换格式，修改大小，并在glance中生成新镜像。"><a href="#1-qcow2镜像存储中转换格式，修改大小，并在glance中生成新镜像。" class="headerlink" title="1. qcow2镜像存储中转换格式，修改大小，并在glance中生成新镜像。"></a>1. qcow2镜像存储中转换格式，修改大小，并在glance中生成新镜像。</h3><p>以老的镜像制作方式为基础</p>
+<blockquote>
+<p>这里是一个习惯问题，如果读者对本文中的操作进行实验后其实很容易直接在存储中直接制作镜像，可以省去不少麻烦。</p>
+</blockquote>
+<p>我们会生成一个3g大小，为了便于上传经过压缩（<code>virt-sparsify --compress</code>）和清理多余信息(<code>virt-sysprep</code>)后的镜像。</p>
+<p>####将镜像上传到glance后，我们需要先拿到镜像对应的rbd地址。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div></pre></td><td class="code"><pre><div class="line">glance --os-image-api-version 2 image-show 79db316e-9012-4296-9226-dec141a1210c</div><div class="line">+------------------+----------------------------------------------------------------------------------+</div><div class="line">| Property         | Value                                                                            |</div><div class="line">+------------------+----------------------------------------------------------------------------------+</div><div class="line">| checksum         | d355054e1f038d4898fddd03b506ad1f                                                 |</div><div class="line">| container_format | bare                                                                             |</div><div class="line">| created_at       | 2016-09-23T02:09:29Z                                                             |</div><div class="line">| direct_url       | rbd://5f3cb911-4f76-4421-a3fd-                                                   |</div><div class="line">|                  | fcd2d7c5104a/images/e6c01758-b7ad-4097-9400-570cc1ceed43/snap                    |</div><div class="line">| disk_format      | raw                                                                              |</div><div class="line">| id               | e6c01758-b7ad-4097-9400-570cc1ceed43                                             |</div><div class="line">| locations        | [&#123;&quot;url&quot;: &quot;rbd://5f3cb911-4f76-4421-a3fd-                                         |</div><div class="line">|                  | fcd2d7c5104a/images/e6c01758-b7ad-4097-9400-570cc1ceed43/snap&quot;, &quot;metadata&quot;: &#123;&#125;&#125;] |</div><div class="line">| min_disk         | 0                                                                                |</div><div class="line">| min_ram          | 0                                                                                |</div><div class="line">| name             | imagetest-qcow2-20160923                                                            |</div><div class="line">| owner            | 176e6938dadd45dcaa847d8242778321                                                 |</div><div class="line">| protected        | False                                                                            |</div><div class="line">| size             | 962461696                                                                        |</div><div class="line">| status           | active                                                                           |</div><div class="line">| tags             | []                                                                               |</div><div class="line">| updated_at       | 2016-09-23T02:09:56Z                                                             |</div><div class="line">| virtual_size     | None                                                                             |</div><div class="line">| visibility       | public                                                                           |</div><div class="line">+------------------+----------------------------------------------------------------------------------+</div></pre></td></tr></table></figure>
+<p>其中，location字段是这样的<br><code>[{&quot;url&quot;: &quot;rbd://5f3cb911-4f76-4421-a3fd-d2d7c5104a/images/e6c01758-b7ad-4097-9400-570cc1ceed43/snap&quot;, &quot;metadata&quot;: {}}]</code></p>
+<p>这个字段中我们只需要一小段内容：<br><code>images/e6c01758-b7ad-4097-9400-570cc1ceed43</code><br>在rbd中对应的是<br><code>pool_name/image_uuid</code></p>
+<p>####转换镜像格式<br>raw的特性和在ceph中的优势在这里就不再复述了，具体操作如下。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div></pre></td><td class="code"><pre><div class="line">#生成新的uuid</div><div class="line">[]# uuidgen</div><div class="line">b0b6bb99-7693-4614-b6f1-01b602d69f54</div><div class="line">#转换qcow2倒raw</div><div class="line">[]# qemu-img convert -O raw rbd:images/e6c01758-b7ad-4097-9400-570cc1ceed43 rbd:images/b0b6bb99-7693-4614-b6f1-01b602d69f54</div></pre></td></tr></table></figure>
+<p>####对rbd中的image扩容<br><code>qemu-img resize rbd:images/b0b6bb99-7693-4614-b6f1-01b602d69f54 50G</code></p>
+<p>resize 完成后需要先boot一下，确认系统盘大小为50g。并提前完成resize2fs的操作。随后再进行一次清理操作。</p>
+<blockquote>
+<p>之所以resize后要先boot一下是因为在我们的使用场景中，基础镜像生成的虚拟机根磁盘是固定不变的，为了免去每次开机时resize2fs对ceph后端的压力，故做此操作。读者们请酌情选择。</p>
+</blockquote>
+<p>这里我们直接通过libvirt挂载glance中的image，磁盘设备在xml文件中的配置如下</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div></pre></td><td class="code"><pre><div class="line">&lt;disk type=&apos;network&apos; device=&apos;disk&apos;&gt;</div><div class="line">  &lt;driver name=&apos;qemu&apos; type=&apos;raw&apos; cache=&apos;writeback&apos; discard=&apos;unmap&apos;/&gt;</div><div class="line">  # username 为 ceph 中给 glance 授权的用户名</div><div class="line">  &lt;auth username=&apos;glance&apos;&gt;</div><div class="line">  # 上文中生成的secret的uuid</div><div class="line">    &lt;secret type=&apos;ceph&apos; uuid=&apos;453cf8e2-02b4-4744-9455-5544601bb043&apos;/&gt;</div><div class="line">  &lt;/auth&gt;</div><div class="line">  #镜像在ceph中的地址</div><div class="line">  &lt;source protocol=&apos;rbd&apos; name=&apos;rbd:images/b0b6bb99-7693-4614-b6f1-01b602d69f54&apos;&gt;</div><div class="line">    &lt;host name=&apos;10.10.10.84&apos; port=&apos;6789&apos;/&gt;</div><div class="line">    &lt;host name=&apos;10.10.10.102&apos; port=&apos;6789&apos;/&gt;</div><div class="line">    &lt;host name=&apos;10.10.10.110&apos; port=&apos;6789&apos;/&gt;</div><div class="line">  &lt;/source&gt;</div><div class="line">  &lt;target dev=&apos;vda&apos; bus=&apos;virtio&apos;/&gt;</div><div class="line">  &lt;address type=&apos;pci&apos; domain=&apos;0x0000&apos; bus=&apos;0x00&apos; slot=&apos;0x05&apos; function=&apos;0x0&apos;/&gt;</div><div class="line">&lt;/disk&gt;</div></pre></td></tr></table></figure>
+<p>注意上面的auth</p>
+<ul>
+<li>username 与线上不同，应为glance</li>
+<li>uuid 为我们为glance创建的secret，通过 <code>virsh secret-list</code> 可以查看列表</li>
+<li>name 为镜像地址，可以通过 <code>glance --os-image-api-version 2 image-show {uuid}</code> 查看,</li>
+</ul>
+<p>完成以上步骤后即可继续操作</p>
+<ul>
+<li>开机并等待虚拟机resize2fs并进入操作系统</li>
+<li>可选择性的手动清理虚拟机内的日志等无用文件</li>
+<li>关机</li>
+<li>删除镜像中的其他复杂遗留信息 </li>
+</ul>
+<p>删除关机后遗留信息也是直接操作rbd</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div></pre></td><td class="code"><pre><div class="line">export LIBGUESTFS_BACKEND=direct</div><div class="line">virt-sysprep -d &#123;domain_name&#125;</div></pre></td></tr></table></figure>
+<p>#####在glance中创建新镜像并指向我们前面初始化后的最终的rbd地址</p>
+<p>由于glance中镜像指向的地址为实际镜像的快照，为了符合要求，我们也需要对上面操作过的镜像做快照处理。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div></pre></td><td class="code"><pre><div class="line">对镜像创建snap</div><div class="line">[]# rbd -p images snap create --snap snap-20160922 b0b6bb99-7693-4614-b6f1-01b602d69f54</div><div class="line">保护snap，以免误删。</div><div class="line">[]# rbd -p images snap protect --image b0b6bb99-7693-4614-b6f1-01b602d69f54 --snap snap</div></pre></td></tr></table></figure>
+<p>创建新镜像并将location指到我们新生成的snap上</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div></pre></td><td class="code"><pre><div class="line">glance image-create --id &#123;NEW_UUID&#125; --name &#123;NEW_IMAGE_NAME&#125; --store rbd --disk-format raw --container-format bare --location rbd://$(sudo ceph fsid)/images/b0b6bb99-7693-4614-b6f1-01b602d69f54/snap-20160922</div></pre></td></tr></table></figure>
+<p>至此整个过程完成</p>
+<p>###在线修改glance中镜像<br>如果发现glance中的镜像内配置文件有问题怎么办？答案当然也是直接改。</p>
+<p>这次我们利用guestfish来操作。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div></pre></td><td class="code"><pre><div class="line">guestfish </div><div class="line"></div><div class="line">Welcome to guestfish, the guest filesystem shell for</div><div class="line">editing virtual machine filesystems and disk images.</div><div class="line">Type: &apos;help&apos; for help on commands</div><div class="line">      &apos;man&apos; to read the manual</div><div class="line">      &apos;quit&apos; to quit the shell</div><div class="line">      </div><div class="line">#添加需要 guestfish识别的rbd磁盘</div><div class="line">#username为glance protocol类型为rbd 格式为raw secret密钥为ceph glance的keyring, 一般在 /etc/ceph/ceph.client.glance.keyring</div><div class="line">&gt;&lt;fs&gt; add-drive images/b0b6bb99-7693-4614-b6f1-01b602d69f54 username:glance protocol:rbd format:raw secret:AQBkGYZX/tuDMxAANVznwk/+MkrhsEBlZAJlLg==</div><div class="line">&gt;&lt;fs&gt; run</div><div class="line">&gt;&lt;fs&gt; list-filesystems</div><div class="line">/dev/sda1: ext4</div><div class="line">&gt;&lt;fs&gt; mount /dev/sda1 /</div><div class="line">#比如我们要修改开机磁盘挂载的配置</div><div class="line">&gt;&lt;fs&gt; edit /etc/fstab</div><div class="line">&gt;&lt;fs&gt; exit</div></pre></td></tr></table></figure>
+<p>再执行一次上文提到的glance指向新snap的操作。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div></pre></td><td class="code"><pre><div class="line">nova image-list</div><div class="line"># 看一下当前已有的snap</div><div class="line">rbd -p images snap ls b0b6bb99-7693-4614-b6f1-01b602d69f54</div><div class="line"># 创建snap</div><div class="line">rbd -p images snap create --snap snap-20160924 b0b6bb99-7693-4614-b6f1-01b602d69f54</div><div class="line"># 保护snap</div><div class="line">rbd -p images snap protect --image b0b6bb99-7693-4614-b6f1-01b602d69f54 --snap snap-20160924</div><div class="line"># 生成新镜像</div><div class="line">glance --debug image-create --id &#123;NEW_UUID&#125; --name &#123;NEW_IMAGE_NAME&#125; --store rbd --disk-format raw --container-format bare --location rbd://$(sudo ceph fsid)/images/b0b6bb99-7693-4614-b6f1-01b602d69f54/snap-20160924</div></pre></td></tr></table></figure>
+<p>至此过程完成。</p>
+<h2 id="小记"><a href="#小记" class="headerlink" title="小记"></a>小记</h2><p>使用ceph存储后对镜像的操作异常方便。<br>从基础镜像的生成，修改，镜像扩容，格式转换等，全部可以在远端完成。并且操作速度的体验要优于传统的在本地磁盘的操作。<br>上面介绍的步骤略显复杂，主要是为了清楚的介绍几种镜像操作的可能遇到情形和处理过程中对一些小细节的处理。读者完全可以根据自己的需求拼凑出适合自己的步骤。<br>另外上面这些步骤也可通过简单修改nova和glance或自家平台代码的形式，直接包装到虚拟机及镜像相关自动化流程中。在此本文只做基本方法的介绍，希望能够抛砖引玉，令读者们能在自己的生产环境中发现实际的应用方式。</p>
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+    <div>
+      
+        
+
+      
+    </div>
+
+
+    <footer class="post-footer">
+      
+
+      
+        
+      
+
+      
+
+      
+      
+    </footer>
+  </article>
+
+
+
+    <div class="post-spread">
+      
+    </div>
+  </div>
+
+          
+          </div>
+          
+
+
+          
+  <div class="comments" id="comments">
+    
+  </div>
+
+
+        </div>
+        
+          
+  
+  <div class="sidebar-toggle">
+    <div class="sidebar-toggle-line-wrap">
+      <span class="sidebar-toggle-line sidebar-toggle-line-first"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-middle"></span>
+      <span class="sidebar-toggle-line sidebar-toggle-line-last"></span>
+    </div>
+  </div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="sidebar-inner">
+
+      
+
+      
+        <ul class="sidebar-nav motion-element">
+          <li class="sidebar-nav-toc sidebar-nav-active" data-target="post-toc-wrap" >
+            文章目录
+          </li>
+          <li class="sidebar-nav-overview" data-target="site-overview">
+            站点概览
+          </li>
+        </ul>
+      
+
+      <section class="site-overview sidebar-panel">
+        <div class="site-author motion-element" itemprop="author" itemscope itemtype="http://schema.org/Person">
+          <img class="site-author-image" itemprop="image"
+               src="/images/avatar.gif"
+               alt="Tinytub" />
+          <p class="site-author-name" itemprop="name">Tinytub</p>
+           
+              <p class="site-description motion-element" itemprop="description"></p>
+          
+        </div>
+        <nav class="site-state motion-element">
+
+          
+            <div class="site-state-item site-state-posts">
+              <a href="/archives">
+                <span class="site-state-item-count">1</span>
+                <span class="site-state-item-name">日志</span>
+              </a>
+            </div>
+          
+
+          
+
+          
+
+        </nav>
+
+        
+
+        <div class="links-of-author motion-element">
+          
+        </div>
+
+        
+        
+
+        
+        
+
+        
+
+
+      </section>
+
+      
+      <!--noindex-->
+        <section class="post-toc-wrap motion-element sidebar-panel sidebar-panel-active">
+          <div class="post-toc">
+
+            
+              
+            
+
+            
+              <div class="post-toc-content"><ol class="nav"><li class="nav-item nav-level-2"><a class="nav-link" href="#准备"><span class="nav-number">1.</span> <span class="nav-text">准备</span></a></li><li class="nav-item nav-level-2"><a class="nav-link" href="#对镜像操作的两个思路"><span class="nav-number">2.</span> <span class="nav-text">对镜像操作的两个思路</span></a><ol class="nav-child"><li class="nav-item nav-level-3"><a class="nav-link" href="#1-qcow2镜像存储中转换格式，修改大小，并在glance中生成新镜像。"><span class="nav-number">2.1.</span> <span class="nav-text">1. qcow2镜像存储中转换格式，修改大小，并在glance中生成新镜像。</span></a></li></ol></li><li class="nav-item nav-level-2"><a class="nav-link" href="#小记"><span class="nav-number">3.</span> <span class="nav-text">小记</span></a></li></ol></div>
+            
+
+          </div>
+        </section>
+      <!--/noindex-->
+      
+
+      
+
+    </div>
+  </aside>
+
+
+        
+      </div>
+    </main>
+
+    <footer id="footer" class="footer">
+      <div class="footer-inner">
+        <div class="copyright" >
+  
+  &copy; 
+  <span itemprop="copyrightYear">2017</span>
+  <span class="with-love">
+    <i class="fa fa-heart"></i>
+  </span>
+  <span class="author" itemprop="copyrightHolder">Tinytub</span>
+</div>
+
+
+<div class="powered-by">
+  由 <a class="theme-link" href="https://hexo.io">Hexo</a> 强力驱动
+</div>
+
+<div class="theme-info">
+  主题 -
+  <a class="theme-link" href="https://github.com/iissnan/hexo-theme-next">
+    NexT.Mist
+  </a>
+</div>
+
+
+        
+
+        
+      </div>
+    </footer>
+
+    
+      <div class="back-to-top">
+        <i class="fa fa-arrow-up"></i>
+        
+      </div>
+    
+    
+  </div>
+
+  
+
+<script type="text/javascript">
+  if (Object.prototype.toString.call(window.Promise) !== '[object Function]') {
+    window.Promise = null;
+  }
+</script>
+
+
+
+
+
+
+
+
+
+  
+
+
+
+
+  
+  <script type="text/javascript" src="/lib/jquery/index.js?v=2.1.3"></script>
+
+  
+  <script type="text/javascript" src="/lib/fastclick/lib/fastclick.min.js?v=1.0.6"></script>
+
+  
+  <script type="text/javascript" src="/lib/jquery_lazyload/jquery.lazyload.js?v=1.9.7"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/velocity/velocity.ui.min.js?v=1.2.1"></script>
+
+  
+  <script type="text/javascript" src="/lib/fancybox/source/jquery.fancybox.pack.js?v=2.1.5"></script>
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/utils.js?v=5.1.0"></script>
+
+  <script type="text/javascript" src="/js/src/motion.js?v=5.1.0"></script>
+
+
+
+  
+  
+
+  
+  <script type="text/javascript" src="/js/src/scrollspy.js?v=5.1.0"></script>
+<script type="text/javascript" src="/js/src/post-details.js?v=5.1.0"></script>
+
+
+
+  
+
+
+  <script type="text/javascript" src="/js/src/bootstrap.js?v=5.1.0"></script>
+
+
+
+  
+
+
+
+  
+
+
+
+
+	
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+
+
+  
+
+
+
+  
+  
+
+  
+
+  
+
+  
+
+  
+
+
+  
+
+</body>
+</html>
