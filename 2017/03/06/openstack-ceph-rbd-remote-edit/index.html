@@ -87,19 +87,17 @@
 
 
 
-<meta name="description" content="随着ceph在线上更深入的使用，以及多机房的场景。以往虚拟机镜像修改上传的模式逐渐成为了负担。实际上，我们可以根据ceph存储的特性，将过去对镜像线下本地处理的操作改为直接在远端处理。
-准备1.镜像在ceph中存储的路径一般为 {pool_name}/{uuid}的形式，通常情况下该{uuid}和镜像的ID是相同的，为避免一些历史原因导致的镜像ID与ceph image uuid有差异，打开gla">
+<meta name="description" content="随着ceph在线上更深入的使用，以及多机房的场景。以往虚拟机镜像修改上传的模式逐渐成为了负担。实际上，我们可以根据ceph存储的特性，将过去对镜像线下本地处理的操作改为直接在远端处理。 准备1.镜像在ceph中存储的路径一般为 {pool_name}/{uuid}的形式，通常情况下该{uuid}和镜像的ID是相同的，为避免一些历史原因导致的镜像ID与ceph image uuid有差异，打开gla">
 <meta property="og:type" content="article">
 <meta property="og:title" content="openstack镜像结合ceph存储后的一些远端操作方法和思考">
 <meta property="og:url" content="http://tinytub.github.io/2017/03/06/openstack-ceph-rbd-remote-edit/index.html">
 <meta property="og:site_name" content="OldCola">
-<meta property="og:description" content="随着ceph在线上更深入的使用，以及多机房的场景。以往虚拟机镜像修改上传的模式逐渐成为了负担。实际上，我们可以根据ceph存储的特性，将过去对镜像线下本地处理的操作改为直接在远端处理。
-准备1.镜像在ceph中存储的路径一般为 {pool_name}/{uuid}的形式，通常情况下该{uuid}和镜像的ID是相同的，为避免一些历史原因导致的镜像ID与ceph image uuid有差异，打开gla">
+<meta property="og:description" content="随着ceph在线上更深入的使用，以及多机房的场景。以往虚拟机镜像修改上传的模式逐渐成为了负担。实际上，我们可以根据ceph存储的特性，将过去对镜像线下本地处理的操作改为直接在远端处理。 准备1.镜像在ceph中存储的路径一般为 {pool_name}/{uuid}的形式，通常情况下该{uuid}和镜像的ID是相同的，为避免一些历史原因导致的镜像ID与ceph image uuid有差异，打开gla">
+<meta property="og:locale" content="zh-Hans">
 <meta property="og:updated_time" content="2017-03-06T09:11:40.000Z">
 <meta name="twitter:card" content="summary">
 <meta name="twitter:title" content="openstack镜像结合ceph存储后的一些远端操作方法和思考">
-<meta name="twitter:description" content="随着ceph在线上更深入的使用，以及多机房的场景。以往虚拟机镜像修改上传的模式逐渐成为了负担。实际上，我们可以根据ceph存储的特性，将过去对镜像线下本地处理的操作改为直接在远端处理。
-准备1.镜像在ceph中存储的路径一般为 {pool_name}/{uuid}的形式，通常情况下该{uuid}和镜像的ID是相同的，为避免一些历史原因导致的镜像ID与ceph image uuid有差异，打开gla">
+<meta name="twitter:description" content="随着ceph在线上更深入的使用，以及多机房的场景。以往虚拟机镜像修改上传的模式逐渐成为了负担。实际上，我们可以根据ceph存储的特性，将过去对镜像线下本地处理的操作改为直接在远端处理。 准备1.镜像在ceph中存储的路径一般为 {pool_name}/{uuid}的形式，通常情况下该{uuid}和镜像的ID是相同的，为避免一些历史原因导致的镜像ID与ceph image uuid有差异，打开gla">
 
 
 
@@ -415,6 +413,22 @@
       
 
       
+        <div class="post-nav">
+          <div class="post-nav-next post-nav-item">
+            
+          </div>
+
+          <span class="post-nav-divider"></span>
+
+          <div class="post-nav-prev post-nav-item">
+            
+              <a href="/2017/09/12/prometheus-practice/" rel="prev" title="prometheus 落地实践">
+                prometheus 落地实践 <i class="fa fa-chevron-right"></i>
+              </a>
+            
+          </div>
+        </div>
+      
 
       
       
@@ -482,7 +496,7 @@
           
             <div class="site-state-item site-state-posts">
               <a href="/archives">
-                <span class="site-state-item-count">1</span>
+                <span class="site-state-item-count">2</span>
                 <span class="site-state-item-name">日志</span>
               </a>
             </div>
