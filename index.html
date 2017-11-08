@@ -229,6 +229,129 @@
   
   
   <div class="post-block">
+    <link itemprop="mainEntityOfPage" href="http://tinytub.github.io/2017/11/08/alertmanager-ha/">
+
+    <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
+      <meta itemprop="name" content="Tinytub">
+      <meta itemprop="description" content="">
+      <meta itemprop="image" content="/images/avatar.gif">
+    </span>
+
+    <span hidden itemprop="publisher" itemscope itemtype="http://schema.org/Organization">
+      <meta itemprop="name" content="OldCola">
+    </span>
+
+    
+      <header class="post-header">
+
+        
+        
+          <h1 class="post-title" itemprop="name headline">
+                
+                <a class="post-title-link" href="/2017/11/08/alertmanager-ha/" itemprop="url">alertmanger HA 方法</a></h1>
+        
+
+        <div class="post-meta">
+          <span class="post-time">
+            
+              <span class="post-meta-item-icon">
+                <i class="fa fa-calendar-o"></i>
+              </span>
+              
+                <span class="post-meta-item-text">发表于</span>
+              
+              <time title="创建于" itemprop="dateCreated datePublished" datetime="2017-11-08T17:42:57+08:00">
+                2017-11-08
+              </time>
+            
+
+            
+
+            
+          </span>
+
+          
+
+          
+            
+          
+
+          
+          
+
+          
+
+          
+
+          
+
+        </div>
+      </header>
+    
+
+    
+    
+    
+    <div class="post-body" itemprop="articleBody">
+
+      
+      
+
+      
+        
+          
+            <p>alertmanager 启动时添加mesh相关配置<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">./alertmanager -config.file simple.yml -mesh.peer=am-1:6783 -mesh.peer=am-2:6783 -mesh.peer=am-3:6783</div><div class="line">./alertmanager -config.file simple.yml -mesh.peer=am-1:6783 -mesh.peer=am-2:6783 -mesh.peer=am-3:6783</div><div class="line">./alertmanager -config.file simple.yml -mesh.peer=am-1:6783 -mesh.peer=am-2:6783 -mesh.peer=am-3:6783</div></pre></td></tr></table></figure></p>
+<p>prometheus 节点添加alertmanager相关配置<br><figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div><div class="line">4</div><div class="line">5</div><div class="line">6</div><div class="line">7</div><div class="line">8</div><div class="line">9</div><div class="line">10</div><div class="line">11</div><div class="line">12</div><div class="line">13</div><div class="line">14</div><div class="line">15</div><div class="line">16</div><div class="line">17</div><div class="line">18</div><div class="line">19</div><div class="line">20</div><div class="line">21</div><div class="line">22</div><div class="line">23</div><div class="line">24</div><div class="line">25</div><div class="line">26</div><div class="line">27</div><div class="line">28</div><div class="line">29</div><div class="line">30</div><div class="line">31</div><div class="line">32</div><div class="line">33</div><div class="line">34</div><div class="line">35</div><div class="line">36</div><div class="line">37</div><div class="line">38</div><div class="line">39</div><div class="line">40</div><div class="line">41</div><div class="line">42</div><div class="line">43</div><div class="line">44</div><div class="line">45</div><div class="line">46</div><div class="line">47</div><div class="line">48</div><div class="line">49</div><div class="line">50</div></pre></td><td class="code"><pre><div class="line">#在prome-1上编辑prometheus配置并启动</div><div class="line">cat &gt; prometheus.yml &lt;&lt; EOF</div><div class="line">global:</div><div class="line">  external_labels:</div><div class="line">    dc: cn1</div><div class="line">alerting:</div><div class="line">  alert_relabel_configs:</div><div class="line">    - source_labels: [dc]    #将容易产生报警区别的label置成相同label</div><div class="line">      regex: (.+)\d+</div><div class="line">      target_label: dc</div><div class="line">  alertmanagers:</div><div class="line">    - static_configs:</div><div class="line">      - targets: [&apos;am-1:9093&apos;, &apos;am-2:9093&apos;, am-3:6783]</div><div class="line"># 其他配置和正常prometheus配置相同</div><div class="line">EOF</div><div class="line">./prometheus</div><div class="line"></div><div class="line">#在prome-2上编辑prometheus配置并启动</div><div class="line">cat &gt; prometheus.yml &lt;&lt; EOF</div><div class="line">global:</div><div class="line">  external_labels:</div><div class="line">    dc: cn2</div><div class="line">alerting:</div><div class="line">  alert_relabel_configs:</div><div class="line">    - source_labels: [dc]    </div><div class="line">      regex: (.+)\d+</div><div class="line">      target_label: dc</div><div class="line">  alertmanagers:</div><div class="line">    - static_configs:</div><div class="line">      - targets:  [&apos;am-1:9093&apos;, &apos;am-2:9093&apos;, am-3:6783]</div><div class="line"># 其他配置和正常prometheus配置相同</div><div class="line">EOF</div><div class="line">./prometheus</div><div class="line"></div><div class="line">#在prome-3上编辑prometheus配置并启动</div><div class="line">cat &gt; prometheus.yml &lt;&lt; EOF</div><div class="line">global:</div><div class="line">  external_labels:</div><div class="line">    dc: cn3</div><div class="line">alerting:</div><div class="line">  alert_relabel_configs:</div><div class="line">    - source_labels: [dc]</div><div class="line">      regex: (.+)\d+</div><div class="line">      target_label: dc</div><div class="line">  alertmanagers:</div><div class="line">    - static_configs:</div><div class="line">      - targets:  [&apos;am-1:9093&apos;, &apos;am-2:9093&apos;, am-3:6783]</div><div class="line"># 其他配置和正常prometheus配置相同</div><div class="line">EOF</div><div class="line">./prometheus</div></pre></td></tr></table></figure></p>
+<p>启动后查看各alertmanager后台，会发现报警信息已同步。</p>
+<figure class="highlight plain"><table><tr><td class="gutter"><pre><div class="line">1</div><div class="line">2</div><div class="line">3</div></pre></td><td class="code"><pre><div class="line">am-1:9093/#/alerts</div><div class="line">am-2:9093/#/alerts</div><div class="line">am-3:9093/#/alerts</div></pre></td></tr></table></figure>
+
+          
+        
+      
+    </div>
+    
+    
+    
+
+    
+
+    
+
+    
+
+    <footer class="post-footer">
+      
+
+      
+
+      
+
+      
+      
+        <div class="post-eof"></div>
+      
+    </footer>
+  </div>
+  
+  
+  
+  </article>
+
+
+    
+      
+
+  
+
+  
+  
+  
+
+  <article class="post post-type-normal" itemscope itemtype="http://schema.org/Article">
+  
+  
+  
+  <div class="post-block">
     <link itemprop="mainEntityOfPage" href="http://tinytub.github.io/2017/09/12/prometheus-practice/">
 
     <span hidden itemprop="author" itemscope itemtype="http://schema.org/Person">
@@ -622,7 +745,7 @@
               
                 <a href="/archives/">
               
-                  <span class="site-state-item-count">2</span>
+                  <span class="site-state-item-count">3</span>
                   <span class="site-state-item-name">日志</span>
                 </a>
               </div>
